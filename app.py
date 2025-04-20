@@ -1,9 +1,9 @@
+from flask import Flask, render_template, request, jsonify
 import braintree
-from flask import Flask, request, jsonify, render_template
 
-app = Flask(__name__, template_folder='templates')
+app = Flask(__name__, template_folder="templates")
 
-# Replace with your own Braintree sandbox credentials
+# Braintree Sandbox Configuration (replace with your own)
 braintree.Configuration.configure(
     braintree.Environment.Sandbox,
     merchant_id='qjs6htkwpwgn4qp5',
@@ -12,29 +12,43 @@ braintree.Configuration.configure(
 )
 
 @app.route('/')
-def home():
-    return render_template('index.html')
+def index():
+    return render_template("index.html")
 
-@app.route('/client_token')
-def client_token():
-    token = braintree.ClientToken.generate()
-    return jsonify({'clientToken': token})
+@app.route('/raw-check', methods=['POST'])
+def raw_check():
+    data = request.json
+    number = data.get("number")
+    month = data.get("exp_month")
+    year = data.get("exp_year")
+    cvv = data.get("cvv")
+    amount = data.get("amount", "10.00")
 
-@app.route('/checkout', methods=['POST'])
-def checkout():
-    nonce = request.json.get('payment_method_nonce')
-    amount = request.json.get('amount', '10.00')
-
-    result = braintree.Transaction.sale({
-        "amount": amount,
-        "payment_method_nonce": nonce,
-        "options": {
-            "submit_for_settlement": True
+    # Create payment method (via fake customer)
+    result = braintree.PaymentMethod.create({
+        "customer_id": "test_user_1",
+        "payment_method_nonce": "fake-valid-nonce",  # we use a placeholder
+        "credit_card": {
+            "number": number,
+            "expiration_month": month,
+            "expiration_year": year,
+            "cvv": cvv
         }
     })
 
     if result.is_success:
-        return jsonify({'success': True, 'transaction_id': result.transaction.id})
+        token = result.payment_method.token
+
+        txn = braintree.Transaction.sale({
+            "amount": amount,
+            "payment_method_token": token,
+            "options": {"submit_for_settlement": True}
+        })
+
+        if txn.is_success:
+            return jsonify({'success': True, 'transaction_id': txn.transaction.id})
+        else:
+            return jsonify({'success': False, 'message': txn.message})
     else:
         return jsonify({'success': False, 'message': result.message})
 
