@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Braintree Payment</title>
+  <script src="https://js.braintreegateway.com/web/dropin/1.33.7/js/dropin.min.js"></script>
+</head>
+<body>
+  <h2>Pay Now</h2>
+  <div id="dropin-container"></div>
+  <button id="submit-button">Pay ₹10</button>
+
+  <script>
+    fetch('/client_token')
+      .then(res => res.json())
+      .then(data => {
+        braintree.dropin.create({
+          authorization: data.clientToken,
+          container: '#dropin-container'
+        }, function (err, dropinInstance) {
+          document.getElementById('submit-button').addEventListener('click', function () {
+            dropinInstance.requestPaymentMethod(function (err, payload) {
+              fetch('/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  payment_method_nonce: payload.nonce,
+                  amount: "10.00"
+                })
+              })
+              .then(res => res.json())
+              .then(result => {
+                if (result.success) {
+                  alert("Payment Success! Transaction ID: " + result.transaction_id);
+                } else {
+                  alert("Failed: " + result.message);
+                }
+              });
+            });
+          });
+        });
+      });
+  </script>
+</body>
+</html>
