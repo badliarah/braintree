@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Braintree Payment</title>
+  <title>Card Checker</title>
   <script src="https://js.braintreegateway.com/web/dropin/1.33.7/js/dropin.min.js"></script>
 </head>
 <body>
-  <h2>Pay Now</h2>
+  <h2>Enter Card Details</h2>
   <div id="dropin-container"></div>
-  <button id="submit-button">Pay ₹10</button>
+  <button id="pay-button">Check Card</button>
 
   <script>
     fetch('/client_token')
@@ -17,22 +17,22 @@
           authorization: data.clientToken,
           container: '#dropin-container'
         }, function (err, dropinInstance) {
-          document.getElementById('submit-button').addEventListener('click', function () {
+          document.getElementById('pay-button').addEventListener('click', function () {
             dropinInstance.requestPaymentMethod(function (err, payload) {
               fetch('/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   payment_method_nonce: payload.nonce,
-                  amount: "10.00"
+                  amount: '10.00'
                 })
               })
               .then(res => res.json())
               .then(result => {
                 if (result.success) {
-                  alert("Payment Success! Transaction ID: " + result.transaction_id);
+                  alert("✅ Approved! ID: " + result.transaction_id);
                 } else {
-                  alert("Failed: " + result.message);
+                  alert("❌ Declined: " + result.message);
                 }
               });
             });
