@@ -2,43 +2,45 @@
 <html>
 <head>
   <title>Card Checker</title>
-  <script src="https://js.braintreegateway.com/web/dropin/1.33.7/js/dropin.min.js"></script>
 </head>
 <body>
-  <h2>Enter Card Details</h2>
-  <div id="dropin-container"></div>
-  <button id="pay-button">Check Card</button>
+  <h2>Enter Card</h2>
+  <p>Format: <code>4242424242424242|12|26|123</code></p>
+  <input type="text" id="card_input" style="width:300px" placeholder="card|mm|yy|cvv">
+  <br><br>
+  <button onclick="submitCard()">Check Card</button>
 
   <script>
-    fetch('/client_token')
+    function submitCard() {
+      let raw = document.getElementById("card_input").value.trim();
+      let parts = raw.split('|');
+
+      if (parts.length !== 4) {
+        alert("Invalid format. Use: card|mm|yy|cvv");
+        return;
+      }
+
+      fetch('/raw-check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          number: parts[0],
+          exp_month: parts[1],
+          exp_year: parts[2],
+          cvv: parts[3],
+          amount: '10.00'
+        })
+      })
       .then(res => res.json())
       .then(data => {
-        braintree.dropin.create({
-          authorization: data.clientToken,
-          container: '#dropin-container'
-        }, function (err, dropinInstance) {
-          document.getElementById('pay-button').addEventListener('click', function () {
-            dropinInstance.requestPaymentMethod(function (err, payload) {
-              fetch('/checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  payment_method_nonce: payload.nonce,
-                  amount: '10.00'
-                })
-              })
-              .then(res => res.json())
-              .then(result => {
-                if (result.success) {
-                  alert("✅ Approved! ID: " + result.transaction_id);
-                } else {
-                  alert("❌ Declined: " + result.message);
-                }
-              });
-            });
-          });
-        });
-      });
+        if (data.success) {
+          alert("✅ Approved! Transaction ID: " + data.transaction_id);
+        } else {
+          alert("❌ Declined: " + data.message);
+        }
+      })
+      .catch(err => alert("Request failed: " + err));
+    }
   </script>
 </body>
 </html>
